@@ -3,31 +3,38 @@ from dataset import SegmentationDataset, transform
 from model import UNet
 from torch.utils.data import DataLoader
 
-# Hyperparameters
+# Hyperparameters and setup
 num_classes = 20
 batch_size = 16
 
-# Directories
-val_image_dir = 'data/val_images'
-val_label_dir = 'data/val_labels'
-
-# Load the model
+# Load trained model for evaluation
 model = UNet(num_classes)
 model.load_state_dict(torch.load('model.pth'))
 model.eval()
 
-# Dataset and Dataloader
-val_dataset = SegmentationDataset(val_image_dir, val_label_dir, transform)
+# Setup dataset and dataloader for validation
+val_dataset = SegmentationDataset('data/val_images', 'data/val_labels', transform)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
-# Evaluation metrics
+# Define evaluation metrics
 def pixel_accuracy(outputs, labels):
+    """
+    Calculates pixel-level accuracy from the model predictions.
+    :param outputs: Model output logits.
+    :param labels: Ground truth labels.
+    """
     _, preds = torch.max(outputs, 1)
     correct = torch.eq(preds, labels).sum().item()
     total = labels.numel()
     return correct / total
 
 def mean_iou(outputs, labels, num_classes):
+    """
+    Calculates mean Intersection over Union (IoU) for segmentation.
+    :param outputs: Model output logits.
+    :param labels: Ground truth labels.
+    :param num_classes: Number of classes in segmentation.
+    """
     _, preds = torch.max(outputs, 1)
     iou = []
     for cls in range(num_classes):
@@ -36,12 +43,12 @@ def mean_iou(outputs, labels, num_classes):
         intersection = (pred_inds[target_inds]).sum().item()
         union = pred_inds.sum().item() + target_inds.sum().item() - intersection
         if union == 0:
-            iou.append(float('nan'))
+            iou.append(float('nan'))  # Avoid division by zero
         else:
             iou.append(intersection / union)
     return torch.tensor(iou).mean().item()
 
-# Evaluation loop
+# Evaluation loop for accuracy and IoU
 val_acc = 0.0
 val_iou = 0.0
 with torch.no_grad():

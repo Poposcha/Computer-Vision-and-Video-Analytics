@@ -1,16 +1,20 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 def conv3x3x3(in_planes, out_planes, stride=1):
-    return nn.Conv3d(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=1, bias=False)
+    """
+    3D convolution with 3x3x3 kernel size.
+    """
+    return nn.Conv3d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
 
 class BasicBlock3D(nn.Module):
+    """
+    A basic 3D convolutional block used in 3D ResNets.
+    """
     expansion = 1
 
     def __init__(self, in_planes, planes, stride=1, downsample=None):
-        super(BasicBlock3D, self).__init__()
+        super().__init__()
         self.conv1 = conv3x3x3(in_planes, planes, stride)
         self.bn1 = nn.BatchNorm3d(planes)
         self.relu = nn.ReLU(inplace=True)
@@ -32,11 +36,13 @@ class BasicBlock3D(nn.Module):
         return out
 
 class ResNet3D(nn.Module):
+    """
+    3D version of the ResNet architecture for processing video data.
+    """
     def __init__(self, block=BasicBlock3D, layers=[2, 2, 2, 2], num_classes=25):
-        super(ResNet3D, self).__init__()
+        super().__init__()
         self.in_planes = 64
-        self.conv1 = nn.Conv3d(3, 64, kernel_size=7, stride=2, padding=3,
-                               bias=False)
+        self.conv1 = nn.Conv3d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm3d(64)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool3d(kernel_size=3, stride=2, padding=1)
@@ -46,21 +52,18 @@ class ResNet3D(nn.Module):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
         self.avgpool = nn.AdaptiveAvgPool3d((1, 1, 1))
         self.fc1 = nn.Linear(512, num_classes)
-    
 
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
         if stride != 1 or self.in_planes != planes * block.expansion:
             downsample = nn.Sequential(
-                nn.Conv3d(self.in_planes, planes * block.expansion,
-                          kernel_size=1, stride=stride, bias=False),
+                nn.Conv3d(self.in_planes, planes * block.expansion, kernel_size=1, stride=stride, bias=False),
                 nn.BatchNorm3d(planes * block.expansion),
             )
         layers = []
-        layers.append(block(self.in_planes, planes, stride, downsample))
-        self.in_planes = planes * block.expansion
-        for _ in range(1, blocks):
-            layers.append(block(self.in_planes, planes))
+        for _ in range(blocks):
+            layers.append(block(self.in_planes, planes, stride if _ == 0 else 1, downsample if _ == 0 else None))
+            self.in_planes = planes * block.expansion
         return nn.Sequential(*layers)
 
     def forward(self, x):
@@ -73,9 +76,6 @@ class ResNet3D(nn.Module):
         x = self.layer3(x)
         x = self.layer4(x)
         x = self.avgpool(x)
-        x = x.flatten(1)
+        x = torch.flatten(x, 1)
         x = self.fc1(x)
-        return x
-
-def resnet18_3d(num_classes=25):
-    return ResNet3D(BasicBlock3D, [2, 2, 2, 2], num_classes)
+        

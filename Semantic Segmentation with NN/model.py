@@ -2,6 +2,9 @@ import torch
 import torch.nn as nn
 
 class UNet(nn.Module):
+    """
+    U-Net model for image segmentation, comprising symmetric down- and upsampling paths with skip connections.
+    """
     def __init__(self):
         super(UNet, self).__init__()
 
